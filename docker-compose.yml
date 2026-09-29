@@ -1,0 +1,132 @@
+# ═══════════════════════════════════════════════════════════════
+#  Docker Compose — MCP-сервер стандартов 1С
+#
+#  Варианты запуска:
+#
+#  1. Встроенная база + HTTP (для Cursor/Claude Desktop):
+#     docker compose up mcp-http
+#
+#  2. Полная база с its.1c.ru + HTTP:
+#     docker compose up mcp-http-full
+#
+#  3. Встроенная база + свои стандарты + HTTP:
+#     docker compose up mcp-http-custom
+#
+#  4. Всё вместе (полная база + свои стандарты + HTTP):
+#     docker compose --profile full up
+#
+#  5. Stdio режим (для Claude Code через docker run):
+#     docker compose run --rm mcp-stdio
+#
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── HTTP: встроенная база (быстрый старт) ────────────────────
+  mcp-http:
+    build: .
+    image: mcp-1c-standards:latest
+    container_name: mcp-1c-standard-review
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3000"
+      DATA_DIR: /app/data
+    volumes:
+      - standards-data:/app/data
+    restart: unless-stopped
+
+  # ── HTTP: полная загрузка с its.1c.ru ────────────────────────
+  mcp-http-full:
+    build: .
+    image: mcp-1c-standards:latest
+    container_name: mcp-1c-standard-review-full
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3000"
+      DATA_DIR: /app/data
+      SCRAPE_ON_START: "true"
+    volumes:
+      - standards-data:/app/data
+    restart: unless-stopped
+
+  # ── HTTP: встроенная + пользовательские стандарты ─────────────
+  mcp-http-custom:
+    build: .
+    image: mcp-1c-standards:latest
+    container_name: mcp-1c-standard-review-custom
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3000"
+      DATA_DIR: /app/data
+      CUSTOM_STANDARDS_PATH: /app/custom-standards
+    volumes:
+      - standards-data:/app/data
+      - ${CUSTOM_STANDARDS_DIR:-./custom-standards}:/app/custom-standards:ro
+    restart: unless-stopped
+
+  # ── Полная конфигурация (профиль "full") ─────────────────────
+  mcp-full:
+    build: .
+    image: mcp-1c-standards:latest
+    container_name: mcp-1c-standard-review-all
+    profiles:
+      - full
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3000"
+      DATA_DIR: /app/data
+      SCRAPE_ON_START: "true"
+      CUSTOM_STANDARDS_PATH: /app/custom-standards
+    volumes:
+      - standards-data:/app/data
+      - ${CUSTOM_STANDARDS_DIR:-./custom-standards}:/app/custom-standards:ro
+    restart: unless-stopped
+
+  # ── Stdio режим (для Claude Code) ───────────────────────────
+  mcp-stdio:
+    build: .
+    image: mcp-1c-standards:latest
+    profiles:
+      - stdio
+    env_file:
+      - .env
+    environment:
+      MCP_TRANSPORT: stdio
+      DATA_DIR: /app/data
+      CUSTOM_STANDARDS_PATH: ${CUSTOM_STANDARDS_PATH:-}
+    volumes:
+      - standards-data:/app/data
+      - ${CUSTOM_STANDARDS_DIR:-./custom-standards}:/app/custom-standards:ro
+    stdin_open: true
+    tty: false
+
+  # ── Одноразовый запуск скрапера ──────────────────────────────
+  scraper:
+    build: .
+    image: mcp-1c-standards:latest
+    profiles:
+      - scrape
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/data
+      FORCE_RESCRAPE: "true"
+    volumes:
+      - standards-data:/app/data
+    entrypoint: ["node", "build/scraper.js"]
+
+volumes:
+  standards-data:
+    name: mcp-1c-standards-data

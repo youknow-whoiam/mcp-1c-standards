@@ -1,0 +1,20 @@
+node_modules/
+build/
+.env
+*.log
+
+# Полная база с ИТС — только локально (scrape), не коммитить
+data/standards.json
+
+# IDE / local MCP client config
+.cursor/
+.vscode/
+.idea/
+
+# Внутренняя документация и скрипты (если появятся)
+PUBLISHING.md
+setup.ps1
+
+# Пользовательские стандарты (у каждого свои)
+custom-standards/*.json
+!custom-standards/example.json
